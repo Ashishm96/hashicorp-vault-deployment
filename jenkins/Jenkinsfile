@@ -28,7 +28,8 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image
-                    def appImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
+                    //def appImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
+                    appImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
                 }
             }
         }
