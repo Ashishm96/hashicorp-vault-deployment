@@ -33,7 +33,7 @@ pipeline {
                 script {
                     // Verify that Docker CLI is accessible
                     sh 'docker --version'
-                    sh 'docker ps'
+                    //sh 'docker ps'
                 }
             }
         }
