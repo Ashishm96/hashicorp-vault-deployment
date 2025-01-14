@@ -20,7 +20,7 @@ pipeline {
         stage('Checkout') {
             steps {
                 // Checkout the code from GitHub
-                git credentialsId: 'github-credentials-id', url: 'https://github.com/Ashishm96/hashicorp-vault-deployment.git'
+                git branch: 'main', credentialsId: 'github-credentials-id', url: 'https://github.com/Ashishm96/hashicorp-vault-deployment.git'
             }
         }
 
