@@ -3,24 +3,28 @@ pipeline {
 
     environment {
         // Artifactory Docker repository details
-        DOCKER_REGISTRY = "https://trial4w4crx.jfrog.io/"
+        DOCKER_REGISTRY = "https://trial4w4crx.jfrog.io"
         DOCKER_REPO = "vault-repo"
-        IMAGE_NAME = "vault-server"
+        IMAGE_NAME = "hashicorp-vault"
         IMAGE_TAG = "latest"
-        
-        // Vault URL for secrets (adjust based on your setup)
-        VAULT_ADDR = "http://vault-service:8200"
-        
+
         // Kubernetes config
         K8S_NAMESPACE = "default"
         K8S_DEPLOYMENT_NAME = "vault"
+
+        // Credentials IDs for Jenkins
+        GITHUB_CREDENTIALS_ID = "github-credentials-id"
+        JFROG_CREDENTIALS_ID = "jfrog-credentials-id"
+
+        // Repository URL
+        REPO_URL = "https://github.com/Ashishm96/hashicorp-vault-deployment.git"
     }
 
     stages {
         stage('Checkout') {
             steps {
                 // Checkout the code from GitHub
-                git branch: 'main', credentialsId: 'github-credentials-id', url: 'https://github.com/Ashishm96/hashicorp-vault-deployment.git'
+                git branch: 'main', credentialsId: GITHUB_CREDENTIALS_ID, url: REPO_URL
             }
         }
 
@@ -28,7 +32,6 @@ pipeline {
             steps {
                 script {
                     // Build the Docker image
-                    //def appImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
                     appImage = docker.build("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
                 }
             }
@@ -37,8 +40,8 @@ pipeline {
         stage('Push Docker Image to Artifactory') {
             steps {
                 script {
-                    // Push the Docker image to Artifactory
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", 'jfrog-credentials-id') {
+                    // Log in to Artifactory and push the image
+                    docker.withRegistry("${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
                         appImage.push()
                     }
                 }
@@ -48,9 +51,11 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Ensure kubectl is configured to point to your cluster
-                    sh "kubectl config use-context minikube"
-                    sh "kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}"
+                    // Deploy to Kubernetes using kubectl
+                    sh """
+                        kubectl config use-context minikube
+                        kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
+                    """
                 }
             }
         }
@@ -58,7 +63,7 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    // Verify the deployment is successful
+                    // Check deployment status
                     sh "kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME} --namespace=${K8S_NAMESPACE}"
                 }
             }
@@ -66,8 +71,14 @@ pipeline {
     }
 
     post {
+        success {
+            echo 'Pipeline executed successfully.'
+        }
+        failure {
+            echo 'Pipeline failed. Please check the logs for details.'
+        }
         always {
-            echo 'Pipeline completed.'
+            cleanWs() // Clean the workspace after execution
         }
     }
 }
