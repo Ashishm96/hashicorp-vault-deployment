@@ -27,7 +27,18 @@ pipeline {
                 git branch: 'main', credentialsId: GITHUB_CREDENTIALS_ID, url: REPO_URL
             }
         }
-
+        
+    stages {
+        stage('Verify Docker Access') {
+            steps {
+                script {
+                    // Verify that Docker CLI is accessible
+                    sh 'docker --version'
+                    sh 'docker ps'
+                }
+            }
+        }
+        
         stage('Build Docker Image') {
             steps {
                 script {
