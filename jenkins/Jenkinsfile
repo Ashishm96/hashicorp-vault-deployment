@@ -5,7 +5,7 @@ pipeline {
         // Artifactory Docker repository details
         DOCKER_REGISTRY = "https://trial4w4crx.jfrog.io"
         DOCKER_REPO = "vault-repo"
-        IMAGE_NAME = "hashicorp-vault"
+        IMAGE_NAME = "vault-server"
         IMAGE_TAG = "latest"
 
         // Kubernetes config
@@ -28,7 +28,6 @@ pipeline {
             }
         }
         
-    stages {
         stage('Verify Docker Access') {
             steps {
                 script {
@@ -38,7 +37,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 script {
