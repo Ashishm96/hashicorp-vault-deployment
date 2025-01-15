@@ -67,20 +67,23 @@ pipeline {
                 script {
                     // Verify the built image is listed
                     sh "docker images"
+
                     // Tag the image
                     sh """
                         docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                     """
 
-                    // Log in to Artifactory and push the image
+                    // Log in to Artifactory using the credentials and push the image
                     docker.withRegistry("${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
                         sh """
+                            echo "Pushing image to Artifactory..."
                             docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
                 }
             }
         }
+
 
         stage('Deploy to Kubernetes') {
             steps {
