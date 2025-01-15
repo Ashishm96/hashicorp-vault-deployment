@@ -85,14 +85,10 @@ pipeline {
 
                     // Verify that the image is pushed by pulling it from Artifactory
                     echo "Verifying pushed image..."
-                    //sh """
-                    //    docker pull ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-                    //"""
-                    def result = sh(script: "docker images | grep ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}", returnStatus: true)
-                    if (result != 0) {
-                        error "Docker image was not found in the registry after push"
-                    } else {
-                        echo "Docker image successfully pushed and verified in Artifactory."
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
+                        sh """
+                            docker pull ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                        """
                     }
 
                 }
