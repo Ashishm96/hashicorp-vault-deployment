@@ -28,7 +28,7 @@ pipeline {
                 git branch: 'main', credentialsId: GITHUB_CREDENTIALS_ID, url: REPO_URL
             }
         }
-        
+
         stage('Verify Docker Access') {
             steps {
                 script {
@@ -37,20 +37,22 @@ pipeline {
                 }
             }
         }
-                stage('Build Docker Image') {
+
+        stage('Build Docker Image') {
             steps {
                 script {
                     echo 'Building Docker image...'
                     sh """
                         docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f docker/Dockerfile .
-                        if [ $? -ne 0 ]; then
-                        echo "Docker build failed"
-                        exit 1
+                        if [ \$? -ne 0 ]; then
+                            echo "Docker build failed"
+                            exit 1
                         fi
                     """
                 }
             }
         }
+
         stage('Verify Docker Image') {
             steps {
                 script {
