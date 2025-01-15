@@ -71,15 +71,19 @@ pipeline {
                     // Tag the image
                     sh """
                         docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                        echo "Docker image tagged as ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
                     """
 
                     // Log in to Artifactory using the credentials and push the image
                     docker.withRegistry("${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
                         sh """
-                            echo "Pushing image to Artifactory..."
+                            echo "Logging into Artifactory..."
                             docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                         """
                     }
+
+                    // Verify that the image is pushed
+                    sh "docker images | grep ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
                 }
             }
         }
