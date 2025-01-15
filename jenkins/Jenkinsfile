@@ -6,7 +6,8 @@ pipeline {
         DOCKER_REGISTRY = "trial4w4crx.jfrog.io"
         DOCKER_REPO = "vault-repo"
         IMAGE_NAME = "vault-server"
-        IMAGE_TAG = "latest"
+        BASE_VERSION = "1.0"
+        IMAGE_TAG = "${BASE_VERSION}.${BUILD_NUMBER}"  // Dynamically create the tag with build number
 
         // Kubernetes config
         K8S_NAMESPACE = "default"
@@ -58,15 +59,20 @@ pipeline {
         stage('Push Docker Image to Artifactory') {
             steps {
                 script {
+                    // Tag the image
+                    sh """
+                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                    """
+
                     // Log in to Artifactory and push the image
-                    docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
-                        def appImage = docker.image("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
-                        appImage.push()
+                    docker.withRegistry("${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
+                        sh """
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                        """
                     }
                 }
             }
         }
-
 
         stage('Deploy to Kubernetes') {
             steps {
