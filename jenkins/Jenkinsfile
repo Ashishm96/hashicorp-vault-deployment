@@ -2,64 +2,56 @@ pipeline {
     agent any
 
     environment {
-        // Artifactory Docker repository details
         DOCKER_REGISTRY = "trial4w4crx.jfrog.io"
         DOCKER_REPO = "vault-repo"
         IMAGE_NAME = "vault-server"
         IMAGE_TAG = "latest"
 
-        // Kubernetes config
         K8S_NAMESPACE = "default"
         K8S_DEPLOYMENT_NAME = "vault"
 
-        // Credentials IDs for Jenkins
         GITHUB_CREDENTIALS_ID = "github-credentials-id"
         JFROG_CREDENTIALS_ID = "jfrog-credentials-id"
 
-        // Repository URL
         REPO_URL = "https://github.com/Ashishm96/hashicorp-vault-deployment.git"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                // Checkout the code from GitHub
                 git branch: 'main', credentialsId: GITHUB_CREDENTIALS_ID, url: REPO_URL
             }
         }
-        
+
         stage('Verify Docker Access') {
             steps {
-                script {
-                    // Verify that Docker CLI is accessible
-                    sh 'docker --version'
-                }
+                sh 'docker --version'
             }
         }
-                stage('Build Docker Image') {
+
+        stage('Build Docker Image') {
             steps {
                 script {
                     echo 'Building Docker image...'
                     sh """
+                        export DOCKER_BUILDKIT=1
                         docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f docker/Dockerfile .
                     """
                 }
             }
         }
+
         stage('Verify Docker Image') {
             steps {
-                script {
-                    echo 'Listing Docker images to verify...'
-                    sh 'docker images'
-                }
+                sh 'docker images'
             }
         }
 
         stage('Push Docker Image to Artifactory') {
             steps {
                 script {
-                    // Log in to Artifactory and push the image
-                    docker.withRegistry("${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
+                        def appImage = docker.image("${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}")
                         appImage.push()
                     }
                 }
