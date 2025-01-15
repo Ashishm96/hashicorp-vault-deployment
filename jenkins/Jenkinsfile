@@ -36,16 +36,35 @@ pipeline {
                 }
             }
         }
-
-        stage('Build Docker Image') {
+                stage('Build Docker Image') {
             steps {
                 script {
-                    // Build the Docker image using the Dockerfile located in the 'docker' directory
-                    appImage = docker.build("${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}", "docker/")  // Specify the path to the Dockerfile directory
+                    echo 'Building Docker image...'
+                    sh """
+                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f docker/Dockerfile .
+                    """
                 }
             }
         }
-
+        stage('Verify Docker Image') {
+            steps {
+                script {
+                    echo 'Listing Docker images to verify...'
+                    sh 'docker images'
+                }
+            }
+        }
+'''
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    sh 
+                    // Build the Docker image using the Dockerfile located in the 'docker' directory
+                    //appImage = docker.build("${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}", "docker/")  // Specify the path to the Dockerfile directory
+                }
+            }
+        }
+'''
         stage('Push Docker Image to Artifactory') {
             steps {
                 script {
