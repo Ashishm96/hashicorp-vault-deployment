@@ -68,23 +68,20 @@ pipeline {
                     // Verify the built image is listed
                     sh "docker images"
 
-                    // Tag the image
+                    // Tag the image (tagging it locally before pushing)
                     sh """
                         docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
                         echo "Docker image tagged as ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
                     """
 
-                    // Explicitly login to Artifactory
-                    sh """
-                        echo "Logging into Artifactory..."
-                        docker login -u ${JFROG_USER} -p ${JFROG_API_KEY} ${DOCKER_REGISTRY}
-                    """
-
-                    // Push the image to Artifactory
-                    sh """
-                        echo "Pushing image to Artifactory..."
-                        docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-                    """
+                    // Log in to Artifactory and push the image using Jenkins credentials
+                    docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
+                        // Push the image to Artifactory
+                        sh """
+                            echo "Pushing image to Artifactory..."
+                            docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                        """
+                    }
 
                     // Verify that the image is pushed
                     sh "docker images | grep ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
