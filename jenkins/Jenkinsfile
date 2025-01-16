@@ -101,7 +101,7 @@ pipeline {
                     // Apply the Kubernetes resources (deployment, configmap, etc.)
                     sh "kubectl apply -f k8s/vault-deployment.yaml --namespace=${K8S_NAMESPACE}"
                     sh "kubectl apply -f k8s/vault-config.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/vault-secret.yaml --namespace=${K8S_NAMESPACE}"
+                    //sh "kubectl apply -f k8s/vault-secret.yaml --namespace=${K8S_NAMESPACE}"
                     sh "kubectl apply -f k8s/vault-service.yaml --namespace=${K8S_NAMESPACE}"
                     sh "kubectl apply -f k8s/vault-ingress.yaml --namespace=${K8S_NAMESPACE}"
                     
