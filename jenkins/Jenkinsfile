@@ -98,7 +98,14 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 script {
-                    // Deploy to Kubernetes using kubectl
+                    // Apply the Kubernetes resources (deployment, configmap, etc.)
+                    sh "kubectl apply -f k8s/vault-deployment.yaml --namespace=${K8S_NAMESPACE}"
+                    sh "kubectl apply -f k8s/vault-config.yaml --namespace=${K8S_NAMESPACE}"
+                    sh "kubectl apply -f k8s/vault-secret.yaml --namespace=${K8S_NAMESPACE}"
+                    sh "kubectl apply -f k8s/vault-service.yaml --namespace=${K8S_NAMESPACE}"
+                    sh "kubectl apply -f k8s/vault-ingress.yaml --namespace=${K8S_NAMESPACE}"
+                    
+                    // Now set the image for the existing deployment
                     sh """
                         kubectl config use-context minikube
                         kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
