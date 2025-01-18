@@ -24,15 +24,17 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                // Checkout the code from GitHub
-                git branch: 'main', credentialsId: GITHUB_CREDENTIALS_ID, url: REPO_URL
+                script {
+                    echo 'Checking out code from GitHub...'
+                    checkout scm
+                }
             }
         }
 
         stage('Verify Docker Access') {
             steps {
                 script {
-                    // Verify that Docker CLI is accessible
+                    echo 'Verifying Docker CLI is accessible...'
                     sh 'docker --version'
                 }
             }
@@ -41,14 +43,14 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    echo 'Building Docker image...'
-                    sh """
-                        docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f docker/Dockerfile .
-                        if [ \$? -ne 0 ]; then
-                            echo "Docker build failed"
-                            exit 1
-                        fi
-                    """
+                    echo "Building Docker image: ${IMAGE_NAME}:${IMAGE_TAG}"
+                    try {
+                        sh """
+                            docker build -t ${IMAGE_NAME}:${IMAGE_TAG} -f docker/Dockerfile .
+                        """
+                    } catch (Exception e) {
+                        error "Docker build failed: ${e}"
+                    }
                 }
             }
         }
@@ -56,7 +58,7 @@ pipeline {
         stage('Verify Docker Image') {
             steps {
                 script {
-                    echo 'Listing Docker images to verify...'
+                    echo 'Listing Docker images to verify the build...'
                     sh 'docker images'
                 }
             }
@@ -65,52 +67,68 @@ pipeline {
         stage('Push Docker Image to Artifactory') {
             steps {
                 script {
-                    // Verify the built image is listed
-                    sh "docker images"
+                    echo "Tagging the image and pushing to Artifactory..."
 
-                    // Tag the image (tagging it locally before pushing)
-                    sh """
-                        docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-                        echo "Docker image tagged as ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
-                    """
+                    // Tag the image before pushing
+                    try {
+                        sh """
+                            docker tag ${IMAGE_NAME}:${IMAGE_TAG} ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
+                            echo "Docker image tagged as ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        """
+                    } catch (Exception e) {
+                        error "Docker image tagging failed: ${e}"
+                    }
 
                     // Log in to Artifactory and push the image using Jenkins credentials
                     docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
-                        // Push the image to Artifactory
-                        sh """
+                        try {
                             echo "Pushing image to Artifactory..."
-                            docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-                        """
+                            sh "docker push ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
+                        } catch (Exception e) {
+                            error "Docker push to Artifactory failed: ${e}"
+                        }
                     }
 
-                    // Verify that the image is pushed by pulling it from Artifactory
-                    echo "Verifying pushed image..."
+                    // Verify the pushed image by pulling it from Artifactory
+                    echo "Verifying pushed image by pulling it..."
                     docker.withRegistry("https://${DOCKER_REGISTRY}", JFROG_CREDENTIALS_ID) {
-                        sh """
-                            docker pull ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}
-                        """
+                        sh "docker pull ${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
                     }
-
                 }
             }
         }
 
         stage('Deploy to Kubernetes') {
-            steps {
-                script {
-                    // Apply the Kubernetes resources (deployment, configmap, etc.)
-                    sh "kubectl apply -f k8s/vault-config.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/vault-secret.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/jfrog-registry-secret.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/vault-ingress.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/vault-deployment.yaml --namespace=${K8S_NAMESPACE}"
-                    sh "kubectl apply -f k8s/vault-service.yaml --namespace=${K8S_NAMESPACE}"
-                    
-                    // Now set the image for the existing deployment
-                    sh """
-                        kubectl config use-context minikube
-                        kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
-                    """
+            parallel {
+                stage('Apply Kubernetes Resources') {
+                    steps {
+                        script {
+                            echo "Applying Kubernetes resources (config, secret, ingress)..."
+                            try {
+                                sh "kubectl apply -f k8s/vault-config.yaml --namespace=${K8S_NAMESPACE}"
+                                sh "kubectl apply -f k8s/vault-secret.yaml --namespace=${K8S_NAMESPACE}"
+                                sh "kubectl apply -f k8s/jfrog-registry-secret.yaml --namespace=${K8S_NAMESPACE}"
+                                sh "kubectl apply -f k8s/vault-ingress.yaml --namespace=${K8S_NAMESPACE}"
+                            } catch (Exception e) {
+                                error "Kubernetes resource application failed: ${e}"
+                            }
+                        }
+                    }
+                }
+                stage('Deploy Vault to Kubernetes') {
+                    steps {
+                        script {
+                            echo "Deploying Vault image to Kubernetes..."
+                            try {
+                                sh """
+                                    kubectl config use-context minikube
+                                    kubectl set image deployment/${K8S_DEPLOYMENT_NAME} ${K8S_DEPLOYMENT_NAME}=${DOCKER_REGISTRY}/${DOCKER_REPO}/${IMAGE_NAME}:${IMAGE_TAG} --namespace=${K8S_NAMESPACE}
+                                """
+                            } catch (Exception e) {
+                                error "Kubernetes deployment update failed: ${e}"
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -118,8 +136,12 @@ pipeline {
         stage('Health Check') {
             steps {
                 script {
-                    // Check deployment status
-                    sh "kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME} --namespace=${K8S_NAMESPACE}"
+                    echo "Checking the health status of the deployment..."
+                    try {
+                        sh "kubectl rollout status deployment/${K8S_DEPLOYMENT_NAME} --namespace=${K8S_NAMESPACE}"
+                    } catch (Exception e) {
+                        error "Deployment health check failed: ${e}"
+                    }
                 }
             }
         }
