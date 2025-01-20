@@ -9,5 +9,4 @@ spec:
   - protocol: TCP
     port: 8200
     targetPort: 8200
-    nordport: 8200
-  type: NodePort # Use LoadBalancer for cloud environments if required
+  type: NodePort  # Use LoadBalancer for cloud environments if required
